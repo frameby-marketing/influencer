@@ -129,8 +129,13 @@
   tbody td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover{background:var(--surface-2);}
+  .who-btn{appearance:none;border:none;background:transparent;font:inherit;padding:0;margin:0;cursor:pointer;text-align:left;color:inherit;display:block;border-radius:6px;}
+  .who-btn:hover .name{color:var(--accent);}
+  .who-btn:hover .popup-ic{opacity:1;}
+  .who-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   .who{display:flex;flex-direction:column;gap:1px;}
-  .who .name{font-weight:600;font-size:13px;}
+  .who .name{font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:5px;transition:color .15s;}
+  .who .popup-ic{width:11px;height:11px;color:var(--ink-3);opacity:0;transition:opacity .15s;flex:none;}
   .who .handle{color:var(--ink-3);font-size:11.5px;font-family:"IBM Plex Mono";}
   .followers{color:var(--ink-2);font-size:11.5px;}
 
@@ -209,7 +214,7 @@
   </section>
 
   <section class="panel">
-    <div class="panel-head"><h2>인플루언서별 진행 상세</h2><span class="hint">게시물·프로필 링크는 새 탭에서 열립니다</span></div>
+    <div class="panel-head"><h2>인플루언서별 진행 상세</h2><span class="hint">이름을 클릭하면 프로필이 팝업으로 열립니다</span></div>
     <div class="panel-body">
       <div class="table-scroll">
         <table>
@@ -226,7 +231,7 @@
   </section>
 
   <footer>
-    <b>사용 방법</b> — 구글 시트의 제품별 탭(PH·DWPRO·DWPLUS·MK·MC·FT)에 인플루언서 정보를 입력하면, 다음 동기화 때 이 대시보드가 실제 데이터로 갱신됩니다. "새로고침"은 마지막으로 동기화된 최신 데이터를 다시 불러옵니다. 게시물·프로필 링크 버튼은 시트의 URL 컬럼을 그대로 새 탭에서 엽니다.
+    <b>사용 방법</b> — 구글 시트의 제품별 탭에 인플루언서 정보를 입력하면, 다음 동기화 때 이 대시보드가 실제 데이터로 갱신됩니다. "새로고침"은 마지막으로 동기화된 최신 데이터를 다시 불러옵니다. 인플루언서 이름을 클릭하면 모바일 화면 크기의 팝업 창으로 인스타그램 프로필이 열리고, "게시물" 버튼은 시트의 게시물 URL을 새 탭에서 엽니다.
   </footer>
 </div>
 
@@ -404,8 +409,11 @@ function renderTable(rows, emptyMessage){
     const perf = (r.likes===null) ? `<span style="color:var(--ink-3)">게시 전</span>` :
       `<span>♥ <b>${fmtNum(r.likes)}</b></span><span>💬 <b>${fmtNum(r.comments)}</b></span>${r.views?`<span>👁 <b>${fmtNum(r.views)}</b></span>`:""}`;
     const postLink = r.postUrl ? `<a class="lnk" href="${r.postUrl}" target="_blank" rel="noopener">게시물 <svg viewBox="0 0 20 20" fill="none"><path d="M7 13 13 7M8 7h5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>` : "";
+    const safeUrl = (r.profileUrl||"").replace(/'/g,"%27");
     return `<tr>
-      <td><div class="who"><span class="name">${r.name || r.handle}</span><span class="handle">${r.name ? r.handle : ""}</span><span class="followers">${fmtNum(r.followers)} 팔로워</span></div></td>
+      <td><button type="button" class="who-btn" onclick="openProfilePopup('${safeUrl}')" title="팝업으로 프로필 보기">
+        <div class="who"><span class="name">${r.name || r.handle}<svg class="popup-ic" viewBox="0 0 20 20" fill="none"><rect x="4" y="2.5" width="12" height="15" rx="2.2" stroke="currentColor" stroke-width="1.4"/><path d="M8.3 15h3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span><span class="handle">${r.name ? r.handle : ""}</span><span class="followers">${fmtNum(r.followers)} 팔로워</span></div>
+      </button></td>
       <td>${r.category}</td>
       <td><span class="pill stage" style="background:var(${sv.var});color:var(${sv.ink});">${stage}</span></td>
       <td><span class="pill ${pillClass('sourcing',r.sourcingStatus)}">${pillLabel(r.sourcingStatus)}</span></td>
@@ -415,10 +423,7 @@ function renderTable(rows, emptyMessage){
       <td class="num">${r.postDate || "—"}</td>
       <td><div class="perf">${perf}</div></td>
       <td><span class="pill ${pillClass('secondary',r.secondary)}">${pillLabel(r.secondary)}</span></td>
-      <td><div class="links">
-        <a class="lnk" href="${r.profileUrl}" target="_blank" rel="noopener">프로필 <svg viewBox="0 0 20 20" fill="none"><path d="M7 13 13 7M8 7h5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-        ${postLink}
-      </div></td>
+      <td><div class="links">${postLink}</div></td>
     </tr>`;
   }).join("");
 }
@@ -435,6 +440,22 @@ function renderAll(){
   renderTable(rows, emptyMessage);
   renderSyncStatus();
 }
+
+// ---- profile popup (phone-sized window) ----
+function openProfilePopup(url){
+  if(!url) return;
+  const w = 390, h = 844; // iPhone-sized viewport
+  const dualLeft = window.screenLeft ?? window.screenX ?? 0;
+  const dualTop = window.screenTop ?? window.screenY ?? 0;
+  const outerW = window.outerWidth || screen.width;
+  const outerH = window.outerHeight || screen.height;
+  const left = Math.round(dualLeft + Math.max(0, (outerW - w) / 2));
+  const top = Math.round(dualTop + Math.max(0, (outerH - h) / 2));
+  const features = `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=yes,status=no`;
+  const win = window.open(url, "ig_profile_popup", features);
+  if(!win){ window.open(url, "_blank", "noopener"); }
+}
+window.openProfilePopup = openProfilePopup;
 
 // ---- theme toggle ----
 function paintThemeIcon(){
