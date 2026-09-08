@@ -54,6 +54,8 @@
   .chart-card .ttl{font-size:13px;font-weight:700;margin-bottom:14px;}
   .banner{display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb, var(--accent) 14%, var(--card));border:1px solid var(--accent);border-left-width:3px;color:var(--text);border-radius:10px;padding:11px 14px;font-size:12.5px;margin-bottom:20px;}
   .banner b{color:var(--accent);}
+  .banner.warn{background:color-mix(in srgb, var(--warn) 14%, var(--card));border-color:var(--warn);}
+  .banner.warn b{color:var(--warn);}
 
   /* pipeline bars */
   .pipeline{display:flex;flex-direction:column;gap:9px;}
@@ -66,11 +68,18 @@
 
   /* table */
   .table-card{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:8px 8px 4px;overflow-x:auto;}
-  table{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px;}
-  thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--sub);font-weight:700;padding:12px 10px 8px;border-bottom:1px solid var(--card-border);white-space:nowrap;}
+  table{border-collapse:collapse;width:100%;min-width:1080px;font-size:12.5px;}
+  thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--sub);font-weight:700;padding:10px 10px 9px;border-bottom:1px solid var(--card-border);white-space:nowrap;vertical-align:bottom;}
+  thead th.sortable{cursor:pointer;user-select:none;}
+  thead th.sortable:hover{color:var(--text);}
+  thead th.active-sort{color:var(--accent);}
+  .sort-ic{display:inline-block;margin-left:2px;font-size:9px;opacity:.75;}
+  .col-filter{display:block;margin-top:6px;width:100%;max-width:132px;background:var(--track);color:var(--text);border:1px solid var(--card-border);border-radius:6px;padding:4px 6px;font-size:10.5px;text-transform:none;letter-spacing:0;font-weight:600;cursor:pointer;}
+  .col-filter:hover{border-color:var(--accent);}
   tbody td{padding:10px 10px;border-bottom:1px solid var(--card-border);vertical-align:middle;white-space:nowrap;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover{background:var(--track);}
+  .num-cell{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
   .who-btn{appearance:none;border:none;background:transparent;font:inherit;padding:0;margin:0;cursor:pointer;text-align:left;color:inherit;display:block;border-radius:6px;}
   .who-btn:hover .name{color:var(--accent);}
   .who-btn:hover .popup-ic{opacity:1;}
@@ -79,7 +88,6 @@
   .who .name{font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:5px;transition:color .15s;}
   .who .popup-ic{width:11px;height:11px;color:var(--sub);opacity:0;transition:opacity .15s;flex:none;}
   .who .handle{color:var(--sub);font-size:11.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
-  .followers{color:var(--sub);font-size:11.5px;}
 
   .pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;}
   .pill.good{background:color-mix(in srgb, var(--good) 18%, transparent);color:var(--good);}
@@ -139,30 +147,32 @@
     </div>
   </div>
 
-  <div class="section-title">인플루언서별 진행 상세 <span style="font-weight:500;color:var(--sub);text-transform:none;letter-spacing:0;">— 이름을 클릭하면 프로필이 팝업으로 열립니다</span></div>
+  <div class="section-title">인플루언서별 진행 상세 <span style="font-weight:500;color:var(--sub);text-transform:none;letter-spacing:0;">— 이름을 클릭하면 프로필이 팝업으로 열립니다 · 헤더를 클릭하거나 드롭다운으로 정렬·필터링할 수 있습니다</span></div>
   <div class="table-card">
     <table>
       <thead>
-        <tr>
-          <th>인플루언서</th><th>카테고리</th><th>전체 진행단계</th><th>섭외</th><th>제품발송</th>
-          <th>콘텐츠제작</th><th>게시</th><th>게시일</th><th>성과</th><th>2차활용</th><th>링크</th>
-        </tr>
+        <tr id="theadRow"></tr>
       </thead>
       <tbody id="tbody"></tbody>
     </table>
   </div>
 
   <footer>
-    구글 시트의 제품별 탭에 인플루언서 정보를 입력하면, 다음 동기화 때 이 대시보드가 실제 데이터로 갱신됩니다.<br>
-    "새로고침"은 마지막으로 동기화된 최신 데이터를 다시 불러옵니다. "게시물" 버튼은 시트의 게시물 URL을 새 탭에서 엽니다.
+    이 대시보드는 구글 시트와 실시간으로 연동되어 있습니다. 제품별 탭에 정보를 입력한 뒤 "새로고침"을 누르면 최신 데이터가 바로 반영됩니다.<br>
+    "게시물" 버튼은 시트의 게시물 URL을 새 탭에서 엽니다.
   </footer>
 </div>
 
 <script>
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/1qRicEFJ_bEMIFbZguU7WBNQu-gaqNwLIVm7BjJRtZNo/edit?gid=0#gid=0";
+const SHEET_ID = "1qRicEFJ_bEMIFbZguU7WBNQu-gaqNwLIVm7BjJRtZNo";
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=0#gid=0`;
 document.getElementById("sheetLink").href = SHEET_URL;
 
 const PRODUCT_CODES = ["PH","DWPRO","DWPLUS","MK","MC","FT"];
+const PRODUCT_LABELS = {
+  PH:"PH스탠드", DWPRO:"DW스탠드 프로", DWPLUS:"DW스탠드 플러스",
+  MK:"맥세이프킥프레임", MC:"맥세이프케이스", FT:"프레임팁",
+};
 
 const STAGES = [
   {key:"섭외중"},
@@ -174,6 +184,7 @@ const STAGES = [
 ];
 
 function deriveStage(r){
+  if(r.stageAuto) return r.stageAuto;
   if(r.secondary === "완료") return "2차활용 완료";
   if(r.secondary === "활용중") return "2차활용 진행중";
   if(r.postStatus === "게시완료") return "게시완료·2차활용 협의";
@@ -194,9 +205,13 @@ function pillClass(kind, val){
 }
 const pillLabel = v => (v && String(v).trim()) ? v : "미입력";
 
+function escHtml(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
 // ---- Fallback data: last data synced from the Google Sheet, embedded so the page
-// still shows real figures when opened outside the artifact runtime (e.g. a
-// standalone index.html with no window.claude db available). ----
+// still shows real figures on the rare occasion live fetch AND the Artifact db
+// capability both fail (e.g. offline). ----
 const SAMPLE = {
   PH: {label:"PH스탠드", rows:[
     {name:"", handle:"@et__haus", followers:11000, category:"집꾸미기", profileUrl:"https://www.instagram.com/et__haus/",
@@ -220,7 +235,7 @@ const SAMPLE = {
     {name:"", handle:"@j.aalla", followers:10000, category:"집꾸미기", profileUrl:"https://www.instagram.com/j.aalla/",
       sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
   ]},
-  DWPRO: {label:"DW스탠드 프로", rows:[], pending:true},
+  DWPRO: {label:"DW스탠드 프로", rows:[]},
   DWPLUS: {label:"DW스탠드 플러스", rows:[]},
   MK: {label:"맥세이프킥프레임", rows:[]},
   MC: {label:"맥세이프케이스", rows:[]},
@@ -230,44 +245,143 @@ const SAMPLE = {
 const fmtNum = n => (n===null||n===undefined) ? "—" : n.toLocaleString("ko-KR");
 const fmtDate = iso => { try{ return new Date(iso).toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}); }catch(e){ return iso; } };
 
-let STATE = { products: SAMPLE, source: "sample", syncedAt: null, active: "전체" };
+function defaultFilters(){
+  return {category:"all", stage:"all", sourcing:"all", ship:"all", content:"all", post:"all", secondary:"all"};
+}
+
+let STATE = { products: SAMPLE, source: "sample", syncedAt: null, active: "전체", filters: defaultFilters(), sort: {key:null, dir:"desc"} };
+
+// ---- CSV parsing (handles quoted fields with embedded commas / newlines) ----
+function parseCSV(text){
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(inQuotes){
+      if(ch === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else inQuotes = false;
+      } else field += ch;
+    } else {
+      if(ch === '"') inQuotes = true;
+      else if(ch === ',') { row.push(field); field=""; }
+      else if(ch === '\n') { row.push(field); rows.push(row); row=[]; field=""; }
+      else if(ch === '\r') { /* skip */ }
+      else field += ch;
+    }
+  }
+  if(field.length>0 || row.length>0){ row.push(field); rows.push(row); }
+  return rows;
+}
+
+// ---- Live fetch: read one product tab directly from the public Google Sheet ----
+async function fetchProductLive(code){
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(code)}`;
+  const res = await fetch(url, {cache:"no-store"});
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  const text = await res.text();
+  const table = parseCSV(text).filter(r => r.length > 1 || (r[0] && r[0].trim()));
+  if(table.length < 1) return { rows: [] };
+  const header = table[0].map(h => h.trim());
+  const idx = {};
+  header.forEach((h,i)=>{ if(h && !(h in idx)) idx[h] = i; });
+  const get = (cols, key) => { const i = idx[key]; return (i===undefined || cols[i]===undefined) ? "" : cols[i].trim(); };
+  const rows = [];
+  for(let i=1;i<table.length;i++){
+    const cols = table[i];
+    if(!cols || cols.every(v => !v || !v.trim())) continue;
+    const name = get(cols, "인플루언서명");
+    let handle = get(cols, "인스타그램 계정(@)");
+    if(!name && !handle) continue;
+    if(handle && !handle.startsWith("@")) handle = "@" + handle;
+    const followersRaw = get(cols, "팔로워 수").replace(/,/g, "");
+    rows.push({
+      name, handle,
+      followers: followersRaw ? (parseInt(followersRaw, 10) || null) : null,
+      category: get(cols, "카테고리"),
+      profileUrl: get(cols, "인스타그램 프로필 URL"),
+      sourcingStatus: get(cols, "섭외 상태"),
+      shipStatus: get(cols, "제품 발송 상태"),
+      contentStatus: get(cols, "콘텐츠 제작 상태"),
+      postStatus: get(cols, "게시 상태"),
+      postDate: get(cols, "실제 게시일"),
+      postUrl: get(cols, "게시물 URL"),
+      secondary: get(cols, "2차활용 상태"),
+      stageAuto: get(cols, "전체 진행단계(자동)"),
+      likes: null, comments: null, views: null,
+    });
+  }
+  return { rows };
+}
 
 async function loadData(){
+  // 1) live fetch straight from the Google Sheet — works when this page is served
+  // from a normal origin (e.g. GitHub Pages). Blocked inside the Artifact preview's CSP.
+  try{
+    const entries = await Promise.all(PRODUCT_CODES.map(async code=>{
+      try{ const {rows} = await fetchProductLive(code); return [code, rows, true]; }
+      catch(e){ return [code, [], false]; }
+    }));
+    const anyOk = entries.some(e => e[2]);
+    if(anyOk){
+      const products = {};
+      entries.forEach(([code, rows, ok])=>{
+        products[code] = { label: PRODUCT_LABELS[code] || code, rows, pending: !ok };
+      });
+      return { products, source: "live", syncedAt: new Date().toISOString() };
+    }
+  }catch(e){}
+
+  // 2) fall back to the Artifact-hosted db capability (only resolves inside claude.ai Artifacts)
   let db = null;
   try{ db = await window.claude.use("db"); }catch(e){ db = null; }
-  if(!db) return { products: SAMPLE, source: "sample", syncedAt: null };
-  try{
-    const snap = await db.collection("products").get();
-    if(snap.empty) return { products: SAMPLE, source: "sample", syncedAt: null };
-    const products = {};
-    snap.docs.forEach(d=>{
-      const data = d.data();
-      if(data && Array.isArray(data.rows)) products[d.id] = { label: data.label || d.id, rows: data.rows, pending: !!data.pending };
-    });
-    if(Object.keys(products).length === 0) return { products: SAMPLE, source: "sample", syncedAt: null };
-    let syncedAt = null;
+  if(db){
     try{
-      const meta = await db.doc("meta/sync").get();
-      if(meta.exists) syncedAt = meta.data().lastSyncedAt || null;
+      const snap = await db.collection("products").get();
+      if(!snap.empty){
+        const products = {};
+        snap.docs.forEach(d=>{
+          const data = d.data();
+          if(data && Array.isArray(data.rows)) products[d.id] = { label: data.label || d.id, rows: data.rows, pending: !!data.pending };
+        });
+        if(Object.keys(products).length){
+          let syncedAt = null;
+          try{ const meta = await db.doc("meta/sync").get(); if(meta.exists) syncedAt = meta.data().lastSyncedAt || null; }catch(e){}
+          return { products, source: "db", syncedAt };
+        }
+      }
     }catch(e){}
-    return { products, source: "db", syncedAt };
-  }catch(e){
-    return { products: SAMPLE, source: "sample", syncedAt: null };
   }
+
+  // 3) last resort: bundled sample snapshot
+  return { products: SAMPLE, source: "sample", syncedAt: null };
 }
 
 function renderSyncStatus(){
   const el = document.getElementById("statusBadge");
   const txt = document.getElementById("statusBadgeText");
+  const bannerEl = document.getElementById("banner");
   const banner = document.getElementById("bannerText");
-  if(STATE.source === "db"){
+  bannerEl.classList.remove("warn");
+  if(STATE.source === "live"){
+    el.classList.add("live");
+    txt.textContent = STATE.syncedAt ? `실시간 연동 · ${fmtDate(STATE.syncedAt)} 기준` : "구글 시트 실시간 연동";
+    const failed = PRODUCT_CODES.filter(c => STATE.products[c] && STATE.products[c].pending);
+    if(failed.length){
+      bannerEl.classList.add("warn");
+      banner.innerHTML = `<b>일부 탭을 불러오지 못했습니다.</b> ${failed.map(c=>PRODUCT_LABELS[c]||c).join(", ")} 탭 이름이 시트와 정확히 일치하는지 확인해 주세요. 나머지 제품은 실시간 데이터입니다.`;
+    } else {
+      banner.innerHTML = `<b>구글 시트와 실시간으로 연동되어 있습니다.</b> 시트에 입력한 내용은 "새로고침"을 누르면 바로 반영됩니다.`;
+    }
+  } else if(STATE.source === "db"){
     el.classList.add("live");
     txt.textContent = STATE.syncedAt ? `마지막 동기화 ${fmtDate(STATE.syncedAt)}` : "구글 시트 연동됨";
     banner.innerHTML = `<b>구글 시트와 연동되었습니다.</b> 최신 데이터를 보려면 "새로고침"을 눌러주세요.`;
   } else {
     el.classList.remove("live");
     txt.textContent = "샘플 데이터 표시 중";
-    banner.innerHTML = `<b>샘플 데이터 미리보기입니다.</b> 구글 시트에 데이터를 입력하고 동기화되면 실제 값으로 바뀝니다.`;
+    bannerEl.classList.add("warn");
+    banner.innerHTML = `<b>샘플 데이터 미리보기입니다.</b> 구글 시트에 연결할 수 없어 마지막으로 저장된 예시 데이터를 보여주고 있습니다. 인터넷 연결 또는 시트 공유 설정을 확인해 주세요.`;
   }
 }
 
@@ -277,10 +391,15 @@ function renderTabs(active){
   tabs.innerHTML = keys.map(k=>{
     const count = k==="전체" ? Object.values(STATE.products).reduce((a,d)=>a+d.rows.length,0) : STATE.products[k].rows.length;
     const label = k==="전체" ? "전체" : (STATE.products[k].label || k);
-    return `<button type="button" class="${k===active?"active":""}" role="tab" aria-selected="${k===active}" data-key="${k}">${label} <span style="opacity:.7;font-weight:500;">${count}</span></button>`;
+    return `<button type="button" class="${k===active?"active":""}" role="tab" aria-selected="${k===active}" data-key="${k}">${escHtml(label)} <span style="opacity:.7;font-weight:500;">${count}</span></button>`;
   }).join("");
   tabs.querySelectorAll("button").forEach(btn=>{
-    btn.addEventListener("click", ()=>{ STATE.active = btn.dataset.key; renderAll(); });
+    btn.addEventListener("click", ()=>{
+      if(STATE.active === btn.dataset.key) return;
+      STATE.active = btn.dataset.key;
+      STATE.filters = defaultFilters();
+      renderAll();
+    });
   });
 }
 
@@ -321,31 +440,116 @@ function renderPipeline(rows){
   }).join("");
 }
 
+function uniqueVals(rows, field){
+  const set = new Set();
+  rows.forEach(r=>{ const v = (r[field]||"").toString().trim(); if(v) set.add(v); });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,"ko"));
+}
+
+function headerSortCell(key,label){
+  const active = STATE.sort.key===key;
+  const arrow = active ? (STATE.sort.dir==="asc" ? "▲" : "▼") : "↕";
+  return `<th class="sortable${active?" active-sort":""}" data-sort="${key}">${label}<span class="sort-ic">${arrow}</span></th>`;
+}
+
+function headerFilterCell(id,label,options){
+  const current = STATE.filters[id] || "all";
+  const opts = [`<option value="all">전체</option>`].concat(
+    options.map(o=>`<option value="${escHtml(o)}"${o===current?" selected":""}>${escHtml(o)}</option>`)
+  );
+  return `<th>${label}<select data-filter="${id}" class="col-filter">${opts.join("")}</select></th>`;
+}
+
+function renderTableHead(rows){
+  const theadRow = document.getElementById("theadRow");
+  const cells = [
+    headerSortCell("name","인플루언서"),
+    headerSortCell("followers","팔로워 수"),
+    headerFilterCell("category","카테고리", uniqueVals(rows,"category")),
+    headerFilterCell("stage","전체 진행단계", uniqueVals(rows,"_stage")),
+    headerFilterCell("sourcing","섭외", uniqueVals(rows,"sourcingStatus")),
+    headerFilterCell("ship","제품발송", uniqueVals(rows,"shipStatus")),
+    headerFilterCell("content","콘텐츠제작", uniqueVals(rows,"contentStatus")),
+    headerFilterCell("post","게시", uniqueVals(rows,"postStatus")),
+    headerSortCell("postDate","게시일"),
+    `<th>성과</th>`,
+    headerFilterCell("secondary","2차활용", uniqueVals(rows,"secondary")),
+    `<th>링크</th>`,
+  ];
+  theadRow.innerHTML = cells.join("");
+  theadRow.querySelectorAll("th[data-sort]").forEach(th=>{
+    th.addEventListener("click", ()=>{
+      const key = th.dataset.sort;
+      if(STATE.sort.key === key){ STATE.sort.dir = STATE.sort.dir==="asc" ? "desc" : "asc"; }
+      else { STATE.sort = { key, dir: key==="name" ? "asc" : "desc" }; }
+      renderAll();
+    });
+  });
+  theadRow.querySelectorAll("select[data-filter]").forEach(sel=>{
+    sel.addEventListener("click", e=>e.stopPropagation());
+    sel.addEventListener("change", ()=>{
+      STATE.filters[sel.dataset.filter] = sel.value;
+      renderAll();
+    });
+  });
+}
+
+function applyFiltersSort(rows){
+  let out = rows.filter(r=>{
+    const f = STATE.filters;
+    if(f.category!=="all" && r.category!==f.category) return false;
+    if(f.stage!=="all" && r._stage!==f.stage) return false;
+    if(f.sourcing!=="all" && r.sourcingStatus!==f.sourcing) return false;
+    if(f.ship!=="all" && r.shipStatus!==f.ship) return false;
+    if(f.content!=="all" && r.contentStatus!==f.content) return false;
+    if(f.post!=="all" && r.postStatus!==f.post) return false;
+    if(f.secondary!=="all" && r.secondary!==f.secondary) return false;
+    return true;
+  });
+  if(STATE.sort.key){
+    const {key, dir} = STATE.sort;
+    out = out.slice().sort((a,b)=>{
+      let cmp;
+      if(key==="followers"){
+        const av = a.followers==null ? -1 : a.followers, bv = b.followers==null ? -1 : b.followers;
+        cmp = av - bv;
+      } else if(key==="name"){
+        cmp = (a.name||a.handle||"").localeCompare(b.name||b.handle||"", "ko");
+      } else {
+        cmp = (a[key]||"").toString().localeCompare((b[key]||"").toString(), "ko");
+      }
+      return dir==="asc" ? cmp : -cmp;
+    });
+  }
+  return out;
+}
+
 function renderTable(rows, emptyMessage){
   if(rows.length === 0){
     document.getElementById("tbody").innerHTML =
-      `<tr><td colspan="11" style="text-align:center;color:var(--sub);padding:28px 10px;white-space:normal;">${emptyMessage || "표시할 데이터가 없습니다."}</td></tr>`;
+      `<tr><td colspan="12" style="text-align:center;color:var(--sub);padding:28px 10px;white-space:normal;">${emptyMessage || "표시할 데이터가 없습니다."}</td></tr>`;
     return;
   }
   document.getElementById("tbody").innerHTML = rows.map(r=>{
-    const stage = deriveStage(r);
+    const stage = r._stage || deriveStage(r);
     const perf = (r.likes===null) ? `<span style="color:var(--sub)">게시 전</span>` :
       `<span>♥ <b>${fmtNum(r.likes)}</b></span><span>💬 <b>${fmtNum(r.comments)}</b></span>${r.views?`<span>👁 <b>${fmtNum(r.views)}</b></span>`:""}`;
-    const postLink = r.postUrl ? `<a class="lnk" href="${r.postUrl}" target="_blank" rel="noopener">게시물 <svg viewBox="0 0 20 20" fill="none"><path d="M7 13 13 7M8 7h5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>` : "";
+    const postLink = r.postUrl ? `<a class="lnk" href="${escHtml(r.postUrl)}" target="_blank" rel="noopener">게시물 <svg viewBox="0 0 20 20" fill="none"><path d="M7 13 13 7M8 7h5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>` : "";
     const safeUrl = (r.profileUrl||"").replace(/'/g,"%27");
     return `<tr>
       <td><button type="button" class="who-btn" onclick="openProfilePopup('${safeUrl}')" title="팝업으로 프로필 보기">
-        <div class="who"><span class="name">${r.name || r.handle}<svg class="popup-ic" viewBox="0 0 20 20" fill="none"><rect x="4" y="2.5" width="12" height="15" rx="2.2" stroke="currentColor" stroke-width="1.4"/><path d="M8.3 15h3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span><span class="handle">${r.name ? r.handle : ""}</span><span class="followers">${fmtNum(r.followers)} 팔로워</span></div>
+        <div class="who"><span class="name">${escHtml(r.name || r.handle)}<svg class="popup-ic" viewBox="0 0 20 20" fill="none"><rect x="4" y="2.5" width="12" height="15" rx="2.2" stroke="currentColor" stroke-width="1.4"/><path d="M8.3 15h3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span><span class="handle">${r.name ? escHtml(r.handle) : ""}</span></div>
       </button></td>
-      <td>${r.category}</td>
-      <td><span class="pill stage">${stage}</span></td>
-      <td><span class="pill ${pillClass('sourcing',r.sourcingStatus)}">${pillLabel(r.sourcingStatus)}</span></td>
-      <td><span class="pill ${pillClass('ship',r.shipStatus)}">${pillLabel(r.shipStatus)}</span></td>
-      <td><span class="pill ${pillClass('content',r.contentStatus)}">${pillLabel(r.contentStatus)}</span></td>
-      <td><span class="pill ${pillClass('post',r.postStatus)}">${pillLabel(r.postStatus)}</span></td>
-      <td>${r.postDate || "—"}</td>
+      <td class="num-cell">${fmtNum(r.followers)}</td>
+      <td>${escHtml(r.category)}</td>
+      <td><span class="pill stage">${escHtml(stage)}</span></td>
+      <td><span class="pill ${pillClass('sourcing',r.sourcingStatus)}">${escHtml(pillLabel(r.sourcingStatus))}</span></td>
+      <td><span class="pill ${pillClass('ship',r.shipStatus)}">${escHtml(pillLabel(r.shipStatus))}</span></td>
+      <td><span class="pill ${pillClass('content',r.contentStatus)}">${escHtml(pillLabel(r.contentStatus))}</span></td>
+      <td><span class="pill ${pillClass('post',r.postStatus)}">${escHtml(pillLabel(r.postStatus))}</span></td>
+      <td>${escHtml(r.postDate) || "—"}</td>
       <td><div class="perf">${perf}</div></td>
-      <td><span class="pill ${pillClass('secondary',r.secondary)}">${pillLabel(r.secondary)}</span></td>
+      <td><span class="pill ${pillClass('secondary',r.secondary)}">${escHtml(pillLabel(r.secondary))}</span></td>
       <td><div style="display:flex;gap:6px;">${postLink}</div></td>
     </tr>`;
   }).join("");
@@ -353,14 +557,19 @@ function renderTable(rows, emptyMessage){
 
 function renderAll(){
   renderTabs(STATE.active);
-  const rows = currentRows();
+  const baseRows = currentRows().map(r=>({...r, _stage: deriveStage(r)}));
   const activeProduct = STATE.products[STATE.active];
   const emptyMessage = activeProduct && activeProduct.pending
-    ? "이 제품은 아직 구글 시트와 연동되지 않았습니다. 시트 탭 이름을 확인해 주세요."
+    ? "이 제품 탭을 불러오지 못했습니다. 구글 시트의 탭 이름을 확인해 주세요."
     : "아직 섭외를 시작하지 않았습니다.";
-  renderStats(rows);
-  renderPipeline(rows);
-  renderTable(rows, emptyMessage);
+  renderStats(baseRows);
+  renderPipeline(baseRows);
+  renderTableHead(baseRows);
+  const tableRows = applyFiltersSort(baseRows);
+  const tableEmptyMessage = (baseRows.length > 0 && tableRows.length === 0)
+    ? "선택한 필터 조건에 해당하는 인플루언서가 없습니다."
+    : emptyMessage;
+  renderTable(tableRows, tableEmptyMessage);
   renderSyncStatus();
 }
 
