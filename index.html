@@ -93,6 +93,7 @@
   .pill.good{background:color-mix(in srgb, var(--good) 18%, transparent);color:var(--good);}
   .pill.warn{background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--warn);}
   .pill.crit{background:color-mix(in srgb, var(--bad) 18%, transparent);color:var(--bad);}
+  .pill.info{background:color-mix(in srgb, var(--accent) 18%, transparent);color:var(--accent);}
   .pill.neutral{background:var(--track);color:var(--sub);}
   .pill.stage{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
 
@@ -140,8 +141,9 @@
   <div class="chart-card">
     <div class="pipeline" id="pipeline"></div>
     <div class="legend">
-      <div class="item"><span class="sw" style="background:var(--good)"></span>정상 진행</div>
-      <div class="item"><span class="sw" style="background:var(--warn)"></span>진행중 · 협의중</div>
+      <div class="item"><span class="sw" style="background:var(--accent)"></span>섭외중 · 진행중</div>
+      <div class="item"><span class="sw" style="background:var(--good)"></span>완료 · 정상 진행</div>
+      <div class="item"><span class="sw" style="background:var(--warn)"></span>제작중 · 협의중</div>
       <div class="item"><span class="sw" style="background:var(--bad)"></span>보류 · 거절</div>
       <div class="item"><span class="sw" style="background:var(--sub)"></span>대기 · 미착수</div>
     </div>
@@ -176,26 +178,33 @@ const PRODUCT_LABELS = {
 
 const STAGES = [
   {key:"섭외중"},
-  {key:"제품발송 대기"},
-  {key:"콘텐츠 제작중"},
-  {key:"게시완료·2차활용 협의"},
-  {key:"2차활용 진행중"},
-  {key:"2차활용 완료"},
+  {key:"제품발송대기중"},
+  {key:"제품 수령 확인 필요"},
+  {key:"게시물 업로드 확인 필요"},
+  {key:"완료"},
 ];
 
+// 섭외완료(구 섭외확정)까지 "완료"로 간주 — 시트 값이 과도기적으로 섞여도 안전하게 처리
+const SOURCING_DONE = ["섭외완료","섭외확정"];
+
 function deriveStage(r){
-  if(r.stageAuto) return r.stageAuto;
-  if(r.secondary === "완료") return "2차활용 완료";
-  if(r.secondary === "활용중") return "2차활용 진행중";
-  if(r.postStatus === "게시완료") return "게시완료·2차활용 협의";
-  if(r.shipStatus === "발송완료") return "콘텐츠 제작중";
-  if(r.sourcingStatus === "섭외확정") return "제품발송 대기";
+  if(r.postStatus === "게시완료") return "완료";
+  if(r.shipStatus === "수령확인") return "게시물 업로드 확인 필요";
+  if(r.shipStatus === "발송완료") return "제품 수령 확인 필요";
+  if(SOURCING_DONE.includes(r.sourcingStatus)) return "제품발송대기중";
   return "섭외중";
 }
 
 function pillClass(kind, val){
   const map = {
-    sourcing:{"리스트업":"neutral","컨택완료":"neutral","협의중":"warn","섭외확정":"good","섭외거절":"crit","진행중":"warn","대기중":"neutral"},
+    // 섭외중=파랑(info) · 섭외완료=초록(good) · 섭외거절=빨강(crit) · 섭외보류=회색(neutral)
+    // 과거 값(리스트업/컨택완료/협의중/섭외확정/진행중/대기중)도 동일 계열 색으로 매핑해 하위호환
+    sourcing:{
+      "섭외중":"info","진행중":"info","협의중":"info","컨택완료":"info","리스트업":"neutral",
+      "섭외완료":"good","섭외확정":"good",
+      "섭외거절":"crit",
+      "섭외보류":"neutral","대기중":"neutral",
+    },
     ship:{"미발송":"neutral","발송완료":"good","수령확인":"good"},
     content:{"제작전":"neutral","제작중":"warn","1차초안":"warn","컨펌완료":"good"},
     post:{"미게시":"neutral","게시완료":"good"},
