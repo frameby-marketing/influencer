@@ -1,0 +1,479 @@
+<title>인플루언서 캠페인 트래커</title>
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('campaign-dashboard-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){
+    document.documentElement.setAttribute('data-theme','dark');
+  }
+})();
+</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --bg:#FAF8F5;
+    --surface:#FFFFFF;
+    --surface-2:#F2EEE8;
+    --border:#E6E0D6;
+    --ink:#211D1A;
+    --ink-2:#635A50;
+    --ink-3:#9A8F82;
+    --accent:#B23A63;
+    --accent-ink:#FFFFFF;
+    --accent-soft:#F7E3EA;
+    --stage-1:#F6E3EC; --stage-1-ink:#7A2647;
+    --stage-2:#EAB8CE; --stage-2-ink:#5E1D38;
+    --stage-3:#D97DA3; --stage-3-ink:#3E0F24;
+    --stage-4:#B23A63; --stage-4-ink:#FFFFFF;
+    --stage-5:#711B3D; --stage-5-ink:#FFF6F9;
+    --good-bg:#E3F1E7; --good-ink:#1F6B3C;
+    --warn-bg:#FBEBD4; --warn-ink:#8A5A0B;
+    --crit-bg:#FBE2E2; --crit-ink:#A32F2F;
+    --neutral-bg:#EAEDF0; --neutral-ink:#4E5B66;
+    --shadow: 0 1px 2px rgba(33,29,26,0.04), 0 8px 24px -12px rgba(33,29,26,0.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#161311; --surface:#211D1A; --surface-2:#2A2521; --border:#3A342D;
+      --ink:#F3EEE7; --ink-2:#C4B9AC; --ink-3:#8C8175;
+      --accent:#E8749A; --accent-ink:#2B0A17; --accent-soft:#3A1F29;
+      --stage-1:#3A2A31; --stage-1-ink:#F0B9CE;
+      --stage-2:#552F42; --stage-2-ink:#F6CBDE;
+      --stage-3:#8A3D5E; --stage-3-ink:#FBE3ED;
+      --stage-4:#C25078; --stage-4-ink:#2B0A17;
+      --stage-5:#E8749A; --stage-5-ink:#2B0A17;
+      --good-bg:#1E3324; --good-ink:#7FD79B;
+      --warn-bg:#3A2E14; --warn-ink:#E8B85B;
+      --crit-bg:#3A1E1E; --crit-ink:#F09B9B;
+      --neutral-bg:#2A2F34; --neutral-ink:#AEB9C2;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#161311; --surface:#211D1A; --surface-2:#2A2521; --border:#3A342D;
+    --ink:#F3EEE7; --ink-2:#C4B9AC; --ink-3:#8C8175;
+    --accent:#E8749A; --accent-ink:#2B0A17; --accent-soft:#3A1F29;
+    --stage-1:#3A2A31; --stage-1-ink:#F0B9CE;
+    --stage-2:#552F42; --stage-2-ink:#F6CBDE;
+    --stage-3:#8A3D5E; --stage-3-ink:#FBE3ED;
+    --stage-4:#C25078; --stage-4-ink:#2B0A17;
+    --stage-5:#E8749A; --stage-5-ink:#2B0A17;
+    --good-bg:#1E3324; --good-ink:#7FD79B;
+    --warn-bg:#3A2E14; --warn-ink:#E8B85B;
+    --crit-bg:#3A1E1E; --crit-ink:#F09B9B;
+    --neutral-bg:#2A2F34; --neutral-ink:#AEB9C2;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR","Pretendard",-apple-system,sans-serif;line-height:1.5;}
+  .num{font-family:"IBM Plex Mono","IBM Plex Sans KR",monospace;font-variant-numeric:tabular-nums;}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 24px 64px;}
+
+  header.top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:18px;}
+  h1{font-size:22px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em;text-wrap:balance;}
+  .sub{color:var(--ink-2);font-size:13.5px;margin:0;}
+
+  .meta-col{display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+  .controls{display:flex;gap:8px;}
+  .ctrl-btn{
+    appearance:none;display:inline-flex;align-items:center;gap:6px;
+    border:1px solid var(--border);background:var(--surface);color:var(--ink-2);
+    font:inherit;font-size:12px;font-weight:600;padding:7px 11px;border-radius:8px;
+    cursor:pointer;text-decoration:none;box-shadow:var(--shadow);transition:border-color .15s, color .15s, transform .1s;
+  }
+  .ctrl-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .ctrl-btn:active{transform:scale(0.97);}
+  .ctrl-btn svg{width:13px;height:13px;flex:none;}
+  .ctrl-btn.icon-only{padding:7px 8px;}
+  #refreshBtn.loading svg{animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .sync-status{font-size:11.5px;color:var(--ink-3);display:flex;align-items:center;gap:6px;}
+  .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--ink-3);}
+  .sync-status.live .sync-dot{background:var(--good-ink);}
+
+  .banner{display:flex;gap:10px;align-items:flex-start;background:var(--accent-soft);border:1px solid var(--accent);border-left-width:3px;color:var(--ink);border-radius:8px;padding:11px 14px;font-size:12.5px;margin-bottom:22px;}
+  .banner b{color:var(--accent);}
+  .banner .icon{flex:none;width:16px;height:16px;margin-top:1px;color:var(--accent);}
+
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto;}
+  .tab{appearance:none;border:none;background:transparent;font:inherit;cursor:pointer;padding:9px 13px;font-size:13px;font-weight:600;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s;white-space:nowrap;}
+  .tab:hover{color:var(--ink-2);}
+  .tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);}
+  .tab .n{font-family:"IBM Plex Mono";font-size:11px;color:var(--ink-3);margin-left:5px;}
+  .tab[aria-selected="true"] .n{color:var(--accent);}
+
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);}
+  .stat .label{font-size:11.5px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
+  .stat .value{font-size:24px;font-weight:600;font-family:"IBM Plex Mono";letter-spacing:-0.02em;}
+  .stat .unit{font-size:12px;color:var(--ink-3);font-weight:500;margin-left:2px;}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);margin-bottom:24px;overflow:hidden;}
+  .panel-head{padding:16px 18px 4px;display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;}
+  .panel-head h2{font-size:14.5px;font-weight:700;margin:0;}
+  .panel-head .hint{font-size:11.5px;color:var(--ink-3);}
+  .panel-body{padding:14px 18px 18px;}
+
+  .pipeline{display:flex;flex-direction:column;gap:9px;}
+  .stage-row{display:grid;grid-template-columns:150px 1fr 46px;align-items:center;gap:10px;}
+  .stage-row .name{font-size:12.5px;color:var(--ink-2);font-weight:600;}
+  .stage-track{background:var(--surface-2);border-radius:5px;height:20px;position:relative;overflow:hidden;}
+  .stage-fill{height:100%;border-radius:5px;transition:width .3s ease;}
+  .stage-row .count{font-size:12.5px;text-align:right;font-weight:600;}
+
+  .table-scroll{overflow-x:auto;}
+  table{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px;}
+  thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:600;padding:0 10px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  tbody td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--surface-2);}
+  .who{display:flex;flex-direction:column;gap:1px;}
+  .who .name{font-weight:600;font-size:13px;}
+  .who .handle{color:var(--ink-3);font-size:11.5px;font-family:"IBM Plex Mono";}
+  .followers{color:var(--ink-2);font-size:11.5px;}
+
+  .pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap;}
+  .pill.good{background:var(--good-bg);color:var(--good-ink);}
+  .pill.warn{background:var(--warn-bg);color:var(--warn-ink);}
+  .pill.crit{background:var(--crit-bg);color:var(--crit-ink);}
+  .pill.neutral{background:var(--neutral-bg);color:var(--neutral-ink);}
+  .pill.stage{font-weight:700;}
+
+  .perf{display:flex;gap:9px;font-family:"IBM Plex Mono";font-size:11.5px;color:var(--ink-2);}
+  .perf span b{color:var(--ink);font-weight:600;}
+
+  .links{display:flex;gap:6px;}
+  .lnk{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:6px;border:1px solid var(--border);color:var(--ink-2);font-size:11px;font-weight:600;text-decoration:none;background:var(--surface);transition:border-color .15s, color .15s;}
+  .lnk:hover{border-color:var(--accent);color:var(--accent);}
+  .lnk svg{width:11px;height:11px;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
+  .legend .item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);}
+  .legend .sw{width:9px;height:9px;border-radius:2px;flex:none;}
+
+  footer{margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.7;}
+  footer b{color:var(--ink-2);}
+
+  @media (max-width:860px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .stage-row{grid-template-columns:96px 1fr 40px;}
+    header.top{flex-direction:column;}
+    .meta-col{align-items:flex-start;}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>인플루언서 캠페인 트래커</h1>
+      <p class="sub">섭외 → 제품 발송 → 콘텐츠 제작 → 게시 → 2차 활용까지, 제품별 협업 진행 현황</p>
+    </div>
+    <div class="meta-col">
+      <div class="controls">
+        <button id="themeToggle" class="ctrl-btn icon-only" title="라이트/다크 모드 전환" aria-label="테마 전환"></button>
+        <a class="ctrl-btn" id="sheetLink" href="https://docs.google.com/spreadsheets/d/1qRicEFJ_bEMIFbZguU7WBNQu-gaqNwLIVm7BjJRtZNo/edit?gid=0#gid=0" target="_blank" rel="noopener">
+          <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 8h14M8 8v9" stroke="currentColor" stroke-width="1.5"/></svg>
+          스프레드시트 열기
+        </a>
+        <button class="ctrl-btn" id="refreshBtn">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M16 8a6.5 6.5 0 1 0-.9 5.4M16 4v4h-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          새로고침
+        </button>
+      </div>
+      <div class="sync-status" id="syncStatus"><span class="sync-dot"></span><span id="syncText">불러오는 중…</span></div>
+    </div>
+  </header>
+
+  <div class="banner" id="banner">
+    <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 6.5v4M10 13.2h.01M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div id="bannerText"><b>샘플 데이터 미리보기입니다.</b> 구글 시트(가이드 · 전체현황 · PH · DWPRO · DWPLUS · MK · MC · FT)에 데이터를 입력하고 동기화되면 실제 값으로 바뀝니다.</div>
+  </div>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div class="stats" id="stats"></div>
+
+  <section class="panel">
+    <div class="panel-head"><h2>파이프라인 현황</h2><span class="hint">단계별 인플루언서 수</span></div>
+    <div class="panel-body">
+      <div class="pipeline" id="pipeline"></div>
+      <div class="legend">
+        <div class="item"><span class="sw" style="background:var(--good-bg);border:1px solid var(--good-ink)"></span>정상 진행</div>
+        <div class="item"><span class="sw" style="background:var(--warn-bg);border:1px solid var(--warn-ink)"></span>진행중 · 협의중</div>
+        <div class="item"><span class="sw" style="background:var(--crit-bg);border:1px solid var(--crit-ink)"></span>보류 · 거절</div>
+        <div class="item"><span class="sw" style="background:var(--neutral-bg);border:1px solid var(--neutral-ink)"></span>대기 · 미착수</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>인플루언서별 진행 상세</h2><span class="hint">게시물·프로필 링크는 새 탭에서 열립니다</span></div>
+    <div class="panel-body">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>인플루언서</th><th>카테고리</th><th>전체 진행단계</th><th>섭외</th><th>제품발송</th>
+              <th>콘텐츠제작</th><th>게시</th><th>게시일</th><th>성과</th><th>2차활용</th><th>링크</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>사용 방법</b> — 구글 시트의 제품별 탭(PH·DWPRO·DWPLUS·MK·MC·FT)에 인플루언서 정보를 입력하면, 다음 동기화 때 이 대시보드가 실제 데이터로 갱신됩니다. "새로고침"은 마지막으로 동기화된 최신 데이터를 다시 불러옵니다. 게시물·프로필 링크 버튼은 시트의 URL 컬럼을 그대로 새 탭에서 엽니다.
+  </footer>
+</div>
+
+<script>
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/1qRicEFJ_bEMIFbZguU7WBNQu-gaqNwLIVm7BjJRtZNo/edit?gid=0#gid=0";
+const PRODUCT_CODES = ["PH","DWPRO","DWPLUS","MK","MC","FT"];
+
+const STAGES = [
+  {key:"섭외중", var:"--stage-1", ink:"--stage-1-ink"},
+  {key:"제품발송 대기", var:"--stage-2", ink:"--stage-2-ink"},
+  {key:"콘텐츠 제작중", var:"--stage-3", ink:"--stage-3-ink"},
+  {key:"게시완료·2차활용 협의", var:"--stage-4", ink:"--stage-4-ink"},
+  {key:"2차활용 진행중", var:"--stage-5", ink:"--stage-5-ink"},
+  {key:"2차활용 완료", var:"--stage-5", ink:"--stage-5-ink"},
+];
+
+function deriveStage(r){
+  if(r.secondary === "완료") return "2차활용 완료";
+  if(r.secondary === "활용중") return "2차활용 진행중";
+  if(r.postStatus === "게시완료") return "게시완료·2차활용 협의";
+  if(r.shipStatus === "발송완료") return "콘텐츠 제작중";
+  if(r.sourcingStatus === "섭외확정") return "제품발송 대기";
+  return "섭외중";
+}
+
+function pillClass(kind, val){
+  const map = {
+    sourcing:{"리스트업":"neutral","컨택완료":"neutral","협의중":"warn","섭외확정":"good","섭외거절":"crit","진행중":"warn","대기중":"neutral"},
+    ship:{"미발송":"neutral","발송완료":"good","수령확인":"good"},
+    content:{"제작전":"neutral","제작중":"warn","1차초안":"warn","컨펌완료":"good"},
+    post:{"미게시":"neutral","게시완료":"good"},
+    secondary:{"미정":"neutral","협의중":"warn","사용승인":"good","활용중":"good","완료":"good"},
+  };
+  return (map[kind] && map[kind][val]) || "neutral";
+}
+const pillLabel = v => (v && String(v).trim()) ? v : "미입력";
+
+// ---- Fallback data: last data synced from the Google Sheet, embedded so the page
+// still shows real figures when opened outside the artifact runtime (e.g. a
+// standalone index.html with no window.claude db available). ----
+const SAMPLE = {
+  PH: {label:"PH스탠드", rows:[
+    {name:"", handle:"@et__haus", followers:11000, category:"집꾸미기", profileUrl:"https://www.instagram.com/et__haus/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+    {name:"", handle:"@tap.mygear", followers:14000, category:"테크", profileUrl:"https://www.instagram.com/tap.mygear/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+    {name:"", handle:"@jardin_de._marie", followers:65000, category:"집꾸미기", profileUrl:"https://www.instagram.com/jardin_de._marie/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+    {name:"", handle:"@so.ong.space", followers:17000, category:"테크", profileUrl:"https://www.instagram.com/so.ong.space/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+    {name:"", handle:"@beige_beigemood", followers:23000, category:"집꾸미기", profileUrl:"https://www.instagram.com/beige_beigemood/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+    {name:"", handle:"@sinae_zip", followers:6695, category:"집꾸미기", profileUrl:"https://www.instagram.com/sinae_zip/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+    {name:"", handle:"@gyugyu_home", followers:6520, category:"집꾸미기", profileUrl:"https://www.instagram.com/gyugyu_home/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+    {name:"", handle:"@truecine", followers:3082, category:"집꾸미기", profileUrl:"https://www.instagram.com/truecine/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+    {name:"", handle:"@yangi282", followers:26000, category:"집꾸미기", profileUrl:"https://www.instagram.com/yangi282/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+    {name:"", handle:"@j.aalla", followers:10000, category:"집꾸미기", profileUrl:"https://www.instagram.com/j.aalla/",
+      sourcingStatus:"진행중", shipStatus:"", contentStatus:"", postStatus:"", postDate:"", postUrl:"", likes:null, comments:null, views:null, secondary:""},
+  ]},
+  DWPRO: {label:"DW스탠드 프로", rows:[], pending:true},
+  DWPLUS: {label:"DW스탠드 플러스", rows:[]},
+  MK: {label:"맥세이프킥프레임", rows:[]},
+  MC: {label:"맥세이프케이스", rows:[]},
+  FT: {label:"프레임팁", rows:[]},
+};
+
+const fmtNum = n => (n===null||n===undefined) ? "—" : n.toLocaleString("ko-KR");
+const fmtDate = iso => { try{ return new Date(iso).toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}); }catch(e){ return iso; } };
+
+let STATE = { products: SAMPLE, source: "sample", syncedAt: null, active: "전체" };
+
+async function loadData(){
+  let db = null;
+  try{ db = await window.claude.use("db"); }catch(e){ db = null; }
+  if(!db) return { products: SAMPLE, source: "sample", syncedAt: null };
+  try{
+    const snap = await db.collection("products").get();
+    if(snap.empty) return { products: SAMPLE, source: "sample", syncedAt: null };
+    const products = {};
+    snap.docs.forEach(d=>{
+      const data = d.data();
+      if(data && Array.isArray(data.rows)) products[d.id] = { label: data.label || d.id, rows: data.rows };
+    });
+    if(Object.keys(products).length === 0) return { products: SAMPLE, source: "sample", syncedAt: null };
+    let syncedAt = null;
+    try{
+      const meta = await db.doc("meta/sync").get();
+      if(meta.exists) syncedAt = meta.data().lastSyncedAt || null;
+    }catch(e){}
+    return { products, source: "db", syncedAt };
+  }catch(e){
+    return { products: SAMPLE, source: "sample", syncedAt: null };
+  }
+}
+
+function renderSyncStatus(){
+  const el = document.getElementById("syncStatus");
+  const txt = document.getElementById("syncText");
+  const banner = document.getElementById("bannerText");
+  if(STATE.source === "db"){
+    el.classList.add("live");
+    txt.textContent = STATE.syncedAt ? `마지막 동기화 ${fmtDate(STATE.syncedAt)}` : "구글 시트 연동됨";
+    banner.innerHTML = `<b>구글 시트와 연동되었습니다.</b> 최신 데이터를 보려면 "새로고침"을 눌러주세요.`;
+  } else {
+    el.classList.remove("live");
+    txt.textContent = "샘플 데이터 표시 중";
+    banner.innerHTML = `<b>샘플 데이터 미리보기입니다.</b> 구글 시트(가이드 · 전체현황 · PH · DWPRO · DWPLUS · MK · MC · FT)에 데이터를 입력하고 동기화되면 실제 값으로 바뀝니다.`;
+  }
+}
+
+function renderTabs(active){
+  const tabs = document.getElementById("tabs");
+  const keys = ["전체", ...PRODUCT_CODES.filter(c => STATE.products[c])];
+  tabs.innerHTML = keys.map(k=>{
+    const count = k==="전체" ? Object.values(STATE.products).reduce((a,d)=>a+d.rows.length,0) : STATE.products[k].rows.length;
+    const label = k==="전체" ? "전체" : (STATE.products[k].label || k);
+    return `<button class="tab" role="tab" aria-selected="${k===active}" data-key="${k}">${label}<span class="n">${count}</span></button>`;
+  }).join("");
+  tabs.querySelectorAll(".tab").forEach(btn=>{
+    btn.addEventListener("click", ()=>{ STATE.active = btn.dataset.key; renderAll(); });
+  });
+}
+
+function currentRows(){
+  if(STATE.active === "전체") return Object.values(STATE.products).flatMap(d=>d.rows);
+  return (STATE.products[STATE.active] || {rows:[]}).rows;
+}
+
+function renderStats(rows){
+  const total = rows.length;
+  const confirmed = rows.filter(r=>r.sourcingStatus==="섭외확정").length;
+  const posted = rows.filter(r=>r.postStatus==="게시완료").length;
+  const totalViews = rows.reduce((a,r)=>a+(r.views||0),0);
+  const secDone = rows.filter(r=>r.secondary==="완료"||r.secondary==="활용중").length;
+  const tiles = [
+    {label:"전체 인플루언서", value:total, unit:"명"},
+    {label:"섭외 확정", value:confirmed, unit:"명"},
+    {label:"게시 완료", value:posted, unit:"건"},
+    {label:"누적 조회·노출수", value:fmtNum(totalViews), unit:""},
+    {label:"2차활용 진행/완료", value:secDone, unit:"건"},
+  ];
+  document.getElementById("stats").innerHTML = tiles.map(t=>`
+    <div class="stat"><div class="label">${t.label}</div>
+    <div class="value">${typeof t.value==="number"?fmtNum(t.value):t.value}<span class="unit">${t.unit}</span></div></div>`).join("");
+}
+
+function renderPipeline(rows){
+  const counts = {};
+  STAGES.forEach(s=>counts[s.key]=0);
+  rows.forEach(r=>{ const s=deriveStage(r); counts[s]=(counts[s]||0)+1; });
+  const uniqueStages = [...new Map(STAGES.map(s=>[s.key,s])).values()];
+  const max = Math.max(1, ...uniqueStages.map(s=>counts[s.key]||0));
+  document.getElementById("pipeline").innerHTML = uniqueStages.map(s=>{
+    const c = counts[s.key]||0;
+    const pct = Math.max(4, Math.round((c/max)*100));
+    return `<div class="stage-row"><div class="name">${s.key}</div>
+      <div class="stage-track"><div class="stage-fill" style="width:${pct}%; background:var(${s.var});"></div></div>
+      <div class="count num">${c}</div></div>`;
+  }).join("");
+}
+
+function renderTable(rows, emptyMessage){
+  if(rows.length === 0){
+    document.getElementById("tbody").innerHTML =
+      `<tr><td colspan="11" style="text-align:center;color:var(--ink-3);padding:28px 10px;white-space:normal;">${emptyMessage || "표시할 데이터가 없습니다."}</td></tr>`;
+    return;
+  }
+  document.getElementById("tbody").innerHTML = rows.map(r=>{
+    const stage = deriveStage(r);
+    const sv = STAGES.find(s=>s.key===stage);
+    const perf = (r.likes===null) ? `<span style="color:var(--ink-3)">게시 전</span>` :
+      `<span>♥ <b>${fmtNum(r.likes)}</b></span><span>💬 <b>${fmtNum(r.comments)}</b></span>${r.views?`<span>👁 <b>${fmtNum(r.views)}</b></span>`:""}`;
+    const postLink = r.postUrl ? `<a class="lnk" href="${r.postUrl}" target="_blank" rel="noopener">게시물 <svg viewBox="0 0 20 20" fill="none"><path d="M7 13 13 7M8 7h5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>` : "";
+    return `<tr>
+      <td><div class="who"><span class="name">${r.name || r.handle}</span><span class="handle">${r.name ? r.handle : ""}</span><span class="followers">${fmtNum(r.followers)} 팔로워</span></div></td>
+      <td>${r.category}</td>
+      <td><span class="pill stage" style="background:var(${sv.var});color:var(${sv.ink});">${stage}</span></td>
+      <td><span class="pill ${pillClass('sourcing',r.sourcingStatus)}">${pillLabel(r.sourcingStatus)}</span></td>
+      <td><span class="pill ${pillClass('ship',r.shipStatus)}">${pillLabel(r.shipStatus)}</span></td>
+      <td><span class="pill ${pillClass('content',r.contentStatus)}">${pillLabel(r.contentStatus)}</span></td>
+      <td><span class="pill ${pillClass('post',r.postStatus)}">${pillLabel(r.postStatus)}</span></td>
+      <td class="num">${r.postDate || "—"}</td>
+      <td><div class="perf">${perf}</div></td>
+      <td><span class="pill ${pillClass('secondary',r.secondary)}">${pillLabel(r.secondary)}</span></td>
+      <td><div class="links">
+        <a class="lnk" href="${r.profileUrl}" target="_blank" rel="noopener">프로필 <svg viewBox="0 0 20 20" fill="none"><path d="M7 13 13 7M8 7h5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        ${postLink}
+      </div></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderAll(){
+  renderTabs(STATE.active);
+  const rows = currentRows();
+  const activeProduct = STATE.products[STATE.active];
+  const emptyMessage = activeProduct && activeProduct.pending
+    ? "이 제품은 아직 구글 시트와 연동되지 않았습니다. 시트 탭 이름을 확인해 주세요."
+    : "아직 섭외를 시작하지 않았습니다.";
+  renderStats(rows);
+  renderPipeline(rows);
+  renderTable(rows, emptyMessage);
+  renderSyncStatus();
+}
+
+// ---- theme toggle ----
+function paintThemeIcon(){
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  document.getElementById("themeToggle").innerHTML = isDark
+    ? `<svg viewBox="0 0 20 20" fill="none"><path d="M10 3v1.5M10 15.5V17M4.2 4.2l1.1 1.1M14.7 14.7l1.1 1.1M3 10h1.5M15.5 10H17M4.2 15.8l1.1-1.1M14.7 5.3l1.1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="10" r="3.4" stroke="currentColor" stroke-width="1.5"/></svg>`
+    : `<svg viewBox="0 0 20 20" fill="none"><path d="M16.5 12.3A6.8 6.8 0 0 1 7.7 3.5 7 7 0 1 0 16.5 12.3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+document.getElementById("themeToggle").addEventListener("click", ()=>{
+  const cur = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try{ localStorage.setItem("campaign-dashboard-theme", next); }catch(e){}
+  paintThemeIcon();
+});
+paintThemeIcon();
+
+// ---- refresh ----
+document.getElementById("refreshBtn").addEventListener("click", async ()=>{
+  const btn = document.getElementById("refreshBtn");
+  btn.classList.add("loading");
+  btn.disabled = true;
+  const data = await loadData();
+  STATE.products = data.products;
+  STATE.source = data.source;
+  STATE.syncedAt = data.syncedAt;
+  if(!STATE.products[STATE.active] && STATE.active !== "전체") STATE.active = "전체";
+  renderAll();
+  btn.classList.remove("loading");
+  btn.disabled = false;
+});
+
+// ---- init ----
+(async function init(){
+  renderAll();
+  const data = await loadData();
+  STATE.products = data.products;
+  STATE.source = data.source;
+  STATE.syncedAt = data.syncedAt;
+  renderAll();
+})();
+</script>
