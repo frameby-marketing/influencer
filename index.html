@@ -95,7 +95,23 @@
   .pill.crit{background:color-mix(in srgb, var(--bad) 18%, transparent);color:var(--bad);}
   .pill.info{background:color-mix(in srgb, var(--accent) 18%, transparent);color:var(--accent);}
   .pill.neutral{background:var(--track);color:var(--sub);}
-  .pill.stage{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
+  .pill.stage{color:#fff;}
+  .pill.stage-sourcing{background:var(--accent);}
+  .pill.stage-ship-wait{background:var(--warn);color:#1a1d23;}
+  .pill.stage-receive{background:var(--accent2);}
+  .pill.stage-post{background:#22a6b3;}
+  .pill.stage-done{background:var(--good);color:#102018;}
+
+  .product-breakdown{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;}
+  .product-mini-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;}
+  .product-mini-title{font-size:12.5px;font-weight:700;margin-bottom:9px;}
+  .product-mini-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .product-mini-metric{min-width:0;}
+  .product-mini-metric span{display:block;color:var(--sub);font-size:10.5px;margin-bottom:3px;white-space:nowrap;}
+  .product-mini-metric b{font-size:15px;font-variant-numeric:tabular-nums;}
+  .product-pill{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;background:color-mix(in srgb, var(--accent2) 18%, transparent);color:var(--accent2);font-size:10.5px;font-weight:700;white-space:nowrap;}
+  @media(max-width:820px){.product-breakdown{grid-template-columns:1fr 1fr;}.product-mini-metrics{grid-template-columns:1fr 1fr;}}
+  @media(max-width:520px){.product-breakdown{grid-template-columns:1fr;}}
 
   .perf{display:flex;gap:9px;font-size:11.5px;color:var(--sub);font-variant-numeric:tabular-nums;}
   .perf span b{color:var(--text);font-weight:700;}
@@ -136,6 +152,7 @@
 
   <div class="section-title">현황 요약</div>
   <div class="grid-5" id="stats"></div>
+  <div id="productStatsBreakdown"></div>
 
   <div class="section-title">파이프라인 현황</div>
   <div class="chart-card">
@@ -255,7 +272,7 @@ const fmtNum = n => (n===null||n===undefined) ? "—" : n.toLocaleString("ko-KR"
 const fmtDate = iso => { try{ return new Date(iso).toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}); }catch(e){ return iso; } };
 
 function defaultFilters(){
-  return {category:"all", stage:"all", sourcing:"all", ship:"all", content:"all", post:"all", secondary:"all"};
+  return {product:"all", category:"all", stage:"all", sourcing:"all", ship:"all", content:"all", post:"all", secondary:"all"};
 }
 
 let STATE = { products: SAMPLE, source: "sample", syncedAt: null, active: "전체", filters: defaultFilters(), sort: {key:null, dir:"desc"} };
@@ -413,13 +430,18 @@ function renderTabs(active){
 }
 
 function currentRows(){
-  if(STATE.active === "전체") return Object.values(STATE.products).flatMap(d=>d.rows);
-  return (STATE.products[STATE.active] || {rows:[]}).rows;
+  if(STATE.active === "전체"){
+    return Object.entries(STATE.products).flatMap(([code,d])=>
+      d.rows.map(r=>({...r, _productCode:code, _productLabel:d.label || PRODUCT_LABELS[code] || code}))
+    );
+  }
+  const d = STATE.products[STATE.active] || {rows:[], label:PRODUCT_LABELS[STATE.active] || STATE.active};
+  return d.rows.map(r=>({...r, _productCode:STATE.active, _productLabel:d.label || PRODUCT_LABELS[STATE.active] || STATE.active}));
 }
 
 function renderStats(rows){
   const total = rows.length;
-  const confirmed = rows.filter(r=>r.sourcingStatus==="섭외확정").length;
+  const confirmed = rows.filter(r=>SOURCING_DONE.includes(r.sourcingStatus)).length;
   const posted = rows.filter(r=>r.postStatus==="게시완료").length;
   const totalViews = rows.reduce((a,r)=>a+(r.views||0),0);
   const secDone = rows.filter(r=>r.secondary==="완료"||r.secondary==="활용중").length;
@@ -433,6 +455,26 @@ function renderStats(rows){
   document.getElementById("stats").innerHTML = tiles.map(t=>`
     <div class="card"><div class="card-label">${t.label}</div>
     <div class="card-value">${typeof t.value==="number"?fmtNum(t.value):t.value}<span class="unit">${t.unit}</span></div></div>`).join("");
+
+  const breakdown = document.getElementById("productStatsBreakdown");
+  if(STATE.active !== "전체"){ breakdown.innerHTML = ""; return; }
+  const cards = PRODUCT_CODES.filter(code=>STATE.products[code]).map(code=>{
+    const d = STATE.products[code];
+    const pr = d.rows || [];
+    const pConfirmed = pr.filter(r=>SOURCING_DONE.includes(r.sourcingStatus)).length;
+    const pPosted = pr.filter(r=>r.postStatus==="게시완료").length;
+    const pSecDone = pr.filter(r=>r.secondary==="완료"||r.secondary==="활용중").length;
+    return `<div class="product-mini-card">
+      <div class="product-mini-title">${escHtml(d.label || PRODUCT_LABELS[code] || code)}</div>
+      <div class="product-mini-metrics">
+        <div class="product-mini-metric"><span>전체</span><b>${fmtNum(pr.length)}</b></div>
+        <div class="product-mini-metric"><span>섭외 확정</span><b>${fmtNum(pConfirmed)}</b></div>
+        <div class="product-mini-metric"><span>게시 완료</span><b>${fmtNum(pPosted)}</b></div>
+        <div class="product-mini-metric"><span>2차활용</span><b>${fmtNum(pSecDone)}</b></div>
+      </div>
+    </div>`;
+  });
+  breakdown.innerHTML = `<div class="product-breakdown">${cards.join("")}</div>`;
 }
 
 function renderPipeline(rows){
@@ -447,6 +489,17 @@ function renderPipeline(rows){
       <div class="stage-track"><div class="stage-fill" style="width:${pct}%;"></div></div>
       <div class="count">${c}</div></div>`;
   }).join("");
+}
+
+function stagePillClass(stage){
+  const map = {
+    "섭외중":"stage-sourcing",
+    "제품발송대기중":"stage-ship-wait",
+    "제품 수령 확인 필요":"stage-receive",
+    "게시물 업로드 확인 필요":"stage-post",
+    "완료":"stage-done",
+  };
+  return map[stage] || "stage-sourcing";
 }
 
 function uniqueVals(rows, field){
@@ -473,6 +526,7 @@ function renderTableHead(rows){
   const theadRow = document.getElementById("theadRow");
   const cells = [
     headerSortCell("name","인플루언서"),
+    ...(STATE.active === "전체" ? [headerFilterCell("product","제품", uniqueVals(rows,"_productLabel"))] : []),
     headerSortCell("followers","팔로워 수"),
     headerFilterCell("category","카테고리", uniqueVals(rows,"category")),
     headerFilterCell("stage","전체 진행단계", uniqueVals(rows,"_stage")),
@@ -506,6 +560,7 @@ function renderTableHead(rows){
 function applyFiltersSort(rows){
   let out = rows.filter(r=>{
     const f = STATE.filters;
+    if(f.product!=="all" && r._productLabel!==f.product) return false;
     if(f.category!=="all" && r.category!==f.category) return false;
     if(f.stage!=="all" && r._stage!==f.stage) return false;
     if(f.sourcing!=="all" && r.sourcingStatus!==f.sourcing) return false;
@@ -536,7 +591,7 @@ function applyFiltersSort(rows){
 function renderTable(rows, emptyMessage){
   if(rows.length === 0){
     document.getElementById("tbody").innerHTML =
-      `<tr><td colspan="12" style="text-align:center;color:var(--sub);padding:28px 10px;white-space:normal;">${emptyMessage || "표시할 데이터가 없습니다."}</td></tr>`;
+      `<tr><td colspan="${STATE.active === "전체" ? 13 : 12}" style="text-align:center;color:var(--sub);padding:28px 10px;white-space:normal;">${emptyMessage || "표시할 데이터가 없습니다."}</td></tr>`;
     return;
   }
   document.getElementById("tbody").innerHTML = rows.map(r=>{
@@ -549,9 +604,10 @@ function renderTable(rows, emptyMessage){
       <td><button type="button" class="who-btn" onclick="openProfilePopup('${safeUrl}')" title="팝업으로 프로필 보기">
         <div class="who"><span class="name">${escHtml(r.name || r.handle)}<svg class="popup-ic" viewBox="0 0 20 20" fill="none"><rect x="4" y="2.5" width="12" height="15" rx="2.2" stroke="currentColor" stroke-width="1.4"/><path d="M8.3 15h3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span><span class="handle">${r.name ? escHtml(r.handle) : ""}</span></div>
       </button></td>
+      ${STATE.active === "전체" ? `<td><span class="product-pill">${escHtml(r._productLabel)}</span></td>` : ""}
       <td class="num-cell">${fmtNum(r.followers)}</td>
       <td>${escHtml(r.category)}</td>
-      <td><span class="pill stage">${escHtml(stage)}</span></td>
+      <td><span class="pill stage ${stagePillClass(stage)}">${escHtml(stage)}</span></td>
       <td><span class="pill ${pillClass('sourcing',r.sourcingStatus)}">${escHtml(pillLabel(r.sourcingStatus))}</span></td>
       <td><span class="pill ${pillClass('ship',r.shipStatus)}">${escHtml(pillLabel(r.shipStatus))}</span></td>
       <td><span class="pill ${pillClass('content',r.contentStatus)}">${escHtml(pillLabel(r.contentStatus))}</span></td>
