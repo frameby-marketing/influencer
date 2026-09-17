@@ -65,9 +65,10 @@
   .funnel-fill{height:100%;border-radius:7px;transition:width .3s ease;}
   .funnel-fill.selected{background:#64748b;}
   .funnel-fill.pending{background:#2f80ed;}
-  .funnel-fill.confirmed{background:#8b5cf6;}
-  .funnel-fill.shipped{background:#f97316;}
-  .funnel-fill.posted{background:#22c55e;}
+  .funnel-fill.confirmed{background:#22c55e;}
+  .funnel-fill.shipped{background:#22c55e;}
+  .funnel-fill.posted{background:#f97316;}
+  .funnel-card + .funnel-card{margin-top:14px;}
   .funnel-count{text-align:right;font-size:15px;font-weight:750;font-variant-numeric:tabular-nums;}
   .funnel-count small{display:block;color:var(--sub);font-size:10.5px;font-weight:600;margin-top:2px;}
   @media(max-width:620px){.funnel-row{grid-template-columns:110px 1fr 66px;gap:8px}.funnel-head{align-items:flex-start}.funnel-head-note{max-width:160px}}
@@ -198,6 +199,7 @@
   <div class="grid-3" id="stats"></div>
   <div id="productStatsBreakdown"></div>
 
+  <div id="pipelineSection">
   <div class="section-title">파이프라인 현황</div>
   <div class="pipeline-option-grid" id="pipelineOptionGrid">
     <div class="chart-card">
@@ -214,6 +216,7 @@
       <div class="option-card-title">옵션별 제품 제공 현황</div>
       <div id="optionStatus"></div>
     </div>
+  </div>
   </div>
 
   <div id="detailSection">
@@ -524,13 +527,20 @@ function renderStats(rows){
     stats.innerHTML = `<div class="funnel-card">
       <div class="funnel-head">
         <div><div class="funnel-head-label">현재 선정된 전체 대상자</div><div class="funnel-head-value">${fmtNum(total)}명</div></div>
-        <div class="funnel-head-note">섭외 완료 ${fmtNum(confirmed)}명 · 팔로워 합계 ${fmtNum(confirmedFollowers)}명${excluded ? `<br>보류·거절 ${fmtNum(excluded)}명` : ""}</div>
+        <div class="funnel-head-note">전체 대상자의 섭외 진행 현황${excluded ? `<br>보류·거절 ${fmtNum(excluded)}명` : ""}</div>
       </div>
       <div class="funnel-group-title">전체 대상자 ${fmtNum(total)}명 기준</div>
       ${row("대상자 선정",total,total,"selected")}
       ${row("섭외 대기중",pending,total,"pending")}
       ${row("섭외 완료",confirmed,total,"confirmed")}
+    </div>
+    <div class="funnel-card">
+      <div class="funnel-head">
+        <div><div class="funnel-head-label">현재 섭외 완료된 인플루언서</div><div class="funnel-head-value">${fmtNum(confirmed)}명</div></div>
+        <div class="funnel-head-note">팔로워수 합계 ${fmtNum(confirmedFollowers)}명</div>
+      </div>
       <div class="funnel-group-title">섭외 완료 ${fmtNum(confirmed)}명 기준</div>
+      ${row("전체 인플루언서",confirmed,confirmed,"selected")}
       ${row("제품 발송완료",shipped,confirmed,"shipped")}
       ${row("게시물 업로드 완료",confirmedPosted,confirmed,"posted")}
     </div>`;
@@ -547,30 +557,7 @@ function renderStats(rows){
   }
 
   const breakdown = document.getElementById("productStatsBreakdown");
-  if(STATE.active !== "전체"){ breakdown.innerHTML = ""; return; }
-  const cards = PRODUCT_CODES.filter(code=>STATE.products[code]).map(code=>{
-    const d = STATE.products[code];
-    const pr = d.rows || [];
-    const pConfirmed = pr.filter(r=>isSourcingDone(r.sourcingStatus)).length;
-    const pPosted = pr.filter(r=>isStatus(r.postStatus,"게시완료","게시물 업로드 완료")).length;
-    return `<div class="product-mini-card">
-      <div class="product-mini-title">${escHtml(d.label || PRODUCT_LABELS[code] || code)}</div>
-      <div class="product-mini-metrics">
-        <div class="product-mini-metric"><span>전체</span><b>${fmtNum(pr.length)}</b></div>
-        <div class="product-mini-metric"><span>섭외 확정</span><b>${fmtNum(pConfirmed)}</b></div>
-        <div class="product-mini-metric"><span>게시 완료</span><b>${fmtNum(pPosted)}</b></div>
-      </div>
-    </div>`;
-  });
-  breakdown.innerHTML = `
-    <div class="breakdown-toggle"><button type="button" class="btn" id="productStatsToggle" aria-expanded="${STATE.productStatsOpen}">
-      제품별 ${STATE.productStatsOpen ? "접기 ▲" : "더보기 ▼"}
-    </button></div>
-    <div class="product-breakdown" id="productStatsCards"${STATE.productStatsOpen ? "" : " hidden"}>${cards.join("")}</div>`;
-  document.getElementById("productStatsToggle").addEventListener("click", ()=>{
-    STATE.productStatsOpen = !STATE.productStatsOpen;
-    renderStats(rows);
-  });
+  breakdown.innerHTML = "";
 }
 
 function renderPipeline(rows){
@@ -767,6 +754,7 @@ function renderAll(){
   renderStats(baseRows);
   renderPipeline(baseRows);
   renderOptionStatus(baseRows);
+  document.getElementById("pipelineSection").hidden = STATE.active === "전체";
   document.getElementById("detailSection").hidden = STATE.active === "전체";
   if(STATE.active === "전체") { renderSyncStatus(); return; }
   renderTableHead(baseRows);
