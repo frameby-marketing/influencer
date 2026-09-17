@@ -110,6 +110,17 @@
   .product-mini-metric span{display:block;color:var(--sub);font-size:10.5px;margin-bottom:3px;white-space:nowrap;}
   .product-mini-metric b{font-size:15px;font-variant-numeric:tabular-nums;}
   .product-text{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;}
+  .breakdown-toggle{display:flex;justify-content:center;margin-top:12px;}
+  .breakdown-toggle .btn{padding:7px 14px;font-size:12px;}
+  .option-layout{display:grid;grid-template-columns:180px 1fr;align-items:center;gap:28px;}
+  .donut{width:150px;height:150px;border-radius:50%;position:relative;margin:auto;background:var(--track);}
+  .donut::after{content:"";position:absolute;inset:28px;border-radius:50%;background:var(--card);}
+  .option-legend{display:flex;flex-direction:column;gap:10px;}
+  .option-item{display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:9px;font-size:12.5px;}
+  .option-dot{width:10px;height:10px;border-radius:50%;}
+  .option-count{font-weight:700;font-variant-numeric:tabular-nums;}
+  .option-share{color:var(--sub);font-size:11px;margin-left:5px;}
+  @media(max-width:520px){.option-layout{grid-template-columns:1fr;gap:18px;}}
   @media(max-width:820px){.product-breakdown{grid-template-columns:1fr 1fr;}.product-mini-metrics{grid-template-columns:1fr 1fr;}}
   @media(max-width:520px){.product-breakdown{grid-template-columns:1fr;}}
 
@@ -166,6 +177,12 @@
     </div>
   </div>
 
+  <div id="optionStatusSection" hidden>
+    <div class="section-title">옵션별 제품 제공 현황</div>
+    <div class="chart-card" id="optionStatus"></div>
+  </div>
+
+  <div id="detailSection">
   <div class="section-title">인플루언서별 진행 상세 <span style="font-weight:500;color:var(--sub);text-transform:none;letter-spacing:0;">— 이름을 클릭하면 프로필이 팝업으로 열립니다 · 헤더를 클릭하거나 드롭다운으로 정렬·필터링할 수 있습니다</span></div>
   <div class="table-card">
     <table>
@@ -174,6 +191,7 @@
       </thead>
       <tbody id="tbody"></tbody>
     </table>
+  </div>
   </div>
 
   <footer>
@@ -196,9 +214,8 @@ const PRODUCT_LABELS = {
 const STAGES = [
   {key:"섭외중"},
   {key:"제품발송대기중"},
-  {key:"제품 수령 확인 필요"},
-  {key:"게시물 업로드 확인 필요"},
-  {key:"완료"},
+  {key:"발송완료"},
+  {key:"게시물 업로드 완료"},
 ];
 
 // 섭외완료(구 섭외확정)까지 "완료"로 간주 — 시트 값이 과도기적으로 섞여도 안전하게 처리
@@ -206,8 +223,14 @@ const SOURCING_DONE = ["섭외완료","섭외확정"];
 
 function deriveStage(r){
   if(r.postStatus === "게시완료") return "완료";
-  if(r.shipStatus === "수령확인") return "게시물 업로드 확인 필요";
-  if(r.shipStatus === "발송완료") return "제품 수령 확인 필요";
+  if(r.shipStatus === "수령확인" || r.shipStatus === "발송완료") return "게시물 업로드 대기중";
+  if(SOURCING_DONE.includes(r.sourcingStatus)) return "제품발송대기중";
+  return "섭외중";
+}
+
+function derivePipelineStage(r){
+  if(r.postStatus === "게시완료") return "게시물 업로드 완료";
+  if(r.shipStatus === "수령확인" || r.shipStatus === "발송완료") return "발송완료";
   if(SOURCING_DONE.includes(r.sourcingStatus)) return "제품발송대기중";
   return "섭외중";
 }
@@ -275,7 +298,7 @@ function defaultFilters(){
   return {product:"all", category:"all", stage:"all", ship:"all", content:"all", post:"all", secondary:"all"};
 }
 
-let STATE = { products: SAMPLE, source: "sample", syncedAt: null, active: "전체", filters: defaultFilters(), sort: {key:null, dir:"desc"} };
+let STATE = { products: SAMPLE, source: "sample", syncedAt: null, active: "전체", productStatsOpen: false, filters: defaultFilters(), sort: {key:null, dir:"desc"} };
 
 // ---- CSV parsing (handles quoted fields with embedded commas / newlines) ----
 function parseCSV(text){
@@ -325,6 +348,7 @@ async function fetchProductLive(code){
       name, handle,
       followers: followersRaw ? (parseInt(followersRaw, 10) || null) : null,
       category: get(cols, "카테고리"),
+      option: get(cols, "색상") || get(cols, "제품 색상") || get(cols, "제품 옵션") || get(cols, "옵션"),
       profileUrl: get(cols, "인스타그램 프로필 URL"),
       sourcingStatus: get(cols, "섭외 상태"),
       shipStatus: get(cols, "제품 발송 상태"),
@@ -423,6 +447,7 @@ function renderTabs(active){
     btn.addEventListener("click", ()=>{
       if(STATE.active === btn.dataset.key) return;
       STATE.active = btn.dataset.key;
+      STATE.productStatsOpen = false;
       STATE.filters = defaultFilters();
       renderAll();
     });
@@ -444,9 +469,9 @@ function renderStats(rows){
   const confirmed = rows.filter(r=>SOURCING_DONE.includes(r.sourcingStatus)).length;
   const posted = rows.filter(r=>r.postStatus==="게시완료").length;
   const tiles = [
-    {label:"전체 인플루언서", value:total, unit:"명"},
-    {label:"섭외 확정", value:confirmed, unit:"명"},
-    {label:"게시 완료", value:posted, unit:"건"},
+    {label:"섭외 중인 전체 인플루언서 수", value:total, unit:"명"},
+    {label:"섭외 확정된 인플루언서 수", value:confirmed, unit:"명"},
+    {label:"게시 완료된 인플루언서 수", value:posted, unit:"명"},
   ];
   document.getElementById("stats").innerHTML = tiles.map(t=>`
     <div class="card"><div class="card-label">${t.label}</div>
@@ -468,13 +493,21 @@ function renderStats(rows){
       </div>
     </div>`;
   });
-  breakdown.innerHTML = `<div class="product-breakdown">${cards.join("")}</div>`;
+  breakdown.innerHTML = `
+    <div class="breakdown-toggle"><button type="button" class="btn" id="productStatsToggle" aria-expanded="${STATE.productStatsOpen}">
+      제품별 ${STATE.productStatsOpen ? "접기 ▲" : "더보기 ▼"}
+    </button></div>
+    <div class="product-breakdown" id="productStatsCards"${STATE.productStatsOpen ? "" : " hidden"}>${cards.join("")}</div>`;
+  document.getElementById("productStatsToggle").addEventListener("click", ()=>{
+    STATE.productStatsOpen = !STATE.productStatsOpen;
+    renderStats(rows);
+  });
 }
 
 function renderPipeline(rows){
   const counts = {};
   STAGES.forEach(s=>counts[s.key]=0);
-  rows.forEach(r=>{ const s=deriveStage(r); counts[s]=(counts[s]||0)+1; });
+  rows.forEach(r=>{ const s=derivePipelineStage(r); counts[s]=(counts[s]||0)+1; });
   const max = Math.max(1, ...STAGES.map(s=>counts[s.key]||0));
   document.getElementById("pipeline").innerHTML = STAGES.map(s=>{
     const c = counts[s.key]||0;
@@ -489,11 +522,40 @@ function stagePillClass(stage){
   const map = {
     "섭외중":"stage-sourcing",
     "제품발송대기중":"stage-ship-wait",
-    "제품 수령 확인 필요":"stage-receive",
-    "게시물 업로드 확인 필요":"stage-post",
+    "게시물 업로드 대기중":"stage-post",
     "완료":"stage-done",
   };
   return map[stage] || "stage-sourcing";
+}
+
+function renderOptionStatus(rows){
+  const section = document.getElementById("optionStatusSection");
+  const target = document.getElementById("optionStatus");
+  if(STATE.active === "전체") { section.hidden = true; target.innerHTML = ""; return; }
+  const counts = new Map();
+  rows.forEach(r=>{
+    const option = (r.option || "").trim();
+    if(option) counts.set(option, (counts.get(option) || 0) + 1);
+  });
+  if(counts.size < 2) { section.hidden = true; target.innerHTML = ""; return; }
+  const items = Array.from(counts.entries()).sort((a,b)=>b[1]-a[1]);
+  const total = items.reduce((sum, [,count])=>sum+count, 0);
+  const colors = ["#4c8dff","#8b7bf0","#3ecf8e","#ffb648","#ff5c6c","#22a6b3"];
+  let cursor = 0;
+  const stops = items.map(([,count],i)=>{
+    const start = cursor;
+    cursor += count / total * 100;
+    return `${colors[i % colors.length]} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`;
+  });
+  target.innerHTML = `<div class="option-layout">
+    <div class="donut" style="background:conic-gradient(${stops.join(",")})" aria-label="옵션별 제공 비중"></div>
+    <div class="option-legend">${items.map(([name,count],i)=>`<div class="option-item">
+      <span class="option-dot" style="background:${colors[i % colors.length]}"></span>
+      <span>${escHtml(name)}</span>
+      <span class="option-count">${fmtNum(count)}개 <span class="option-share">${(count/total*100).toFixed(1)}%</span></span>
+    </div>`).join("")}</div>
+  </div>`;
+  section.hidden = false;
 }
 
 function uniqueVals(rows, field){
@@ -620,6 +682,9 @@ function renderAll(){
     : "아직 섭외를 시작하지 않았습니다.";
   renderStats(baseRows);
   renderPipeline(baseRows);
+  renderOptionStatus(baseRows);
+  document.getElementById("detailSection").hidden = STATE.active === "전체";
+  if(STATE.active === "전체") { renderSyncStatus(); return; }
   renderTableHead(baseRows);
   const tableRows = applyFiltersSort(baseRows);
   const tableEmptyMessage = (baseRows.length > 0 && tableRows.length === 0)
