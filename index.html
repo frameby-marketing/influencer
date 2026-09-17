@@ -51,6 +51,26 @@
   .card-label{font-size:12.5px;color:var(--sub);margin-bottom:10px;font-weight:600;}
   .card-value{font-size:24px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums;}
   .card-value .unit{font-size:12px;color:var(--sub);font-weight:500;margin-left:2px;}
+  .card-value .inline-total{font-size:12px;color:var(--sub);font-weight:600;margin-left:7px;white-space:nowrap;}
+  .overview-funnel{display:block;}
+  .funnel-card{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:20px;}
+  .funnel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--card-border);}
+  .funnel-head-label{font-size:12.5px;color:var(--sub);font-weight:600;margin-bottom:5px;}
+  .funnel-head-value{font-size:28px;font-weight:750;font-variant-numeric:tabular-nums;}
+  .funnel-head-note{font-size:11.5px;color:var(--sub);text-align:right;line-height:1.5;}
+  .funnel-group-title{font-size:11px;color:var(--sub);font-weight:700;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.04em;}
+  .funnel-row{display:grid;grid-template-columns:170px minmax(140px,1fr) 84px;align-items:center;gap:12px;margin:9px 0;}
+  .funnel-label{font-size:12.5px;font-weight:650;}
+  .funnel-track{height:26px;background:var(--track);border-radius:7px;overflow:hidden;}
+  .funnel-fill{height:100%;border-radius:7px;transition:width .3s ease;}
+  .funnel-fill.selected{background:#64748b;}
+  .funnel-fill.pending{background:#2f80ed;}
+  .funnel-fill.confirmed{background:#8b5cf6;}
+  .funnel-fill.shipped{background:#f97316;}
+  .funnel-fill.posted{background:#22c55e;}
+  .funnel-count{text-align:right;font-size:15px;font-weight:750;font-variant-numeric:tabular-nums;}
+  .funnel-count small{display:block;color:var(--sub);font-size:10.5px;font-weight:600;margin-top:2px;}
+  @media(max-width:620px){.funnel-row{grid-template-columns:110px 1fr 66px;gap:8px}.funnel-head{align-items:flex-start}.funnel-head-note{max-width:160px}}
   .chart-card{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:18px;}
   .chart-card .ttl{font-size:13px;font-weight:700;margin-bottom:14px;}
   .banner{display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb, var(--accent) 14%, var(--card));border:1px solid var(--accent);border-left-width:3px;color:var(--text);border-radius:10px;padding:11px 14px;font-size:12.5px;margin-bottom:20px;}
@@ -486,14 +506,45 @@ function renderStats(rows){
   const total = rows.length;
   const confirmed = rows.filter(r=>isSourcingDone(r.sourcingStatus)).length;
   const posted = rows.filter(r=>isStatus(r.postStatus,"게시완료","게시물 업로드 완료")).length;
+  const confirmedFollowers = rows.filter(r=>isSourcingDone(r.sourcingStatus)).reduce((sum,r)=>sum+(Number(r.followers)||0),0);
+  const stats = document.getElementById("stats");
+  if(STATE.active === "전체"){
+    const confirmedRows = rows.filter(r=>isSourcingDone(r.sourcingStatus));
+    const pending = rows.filter(r=>!isSourcingDone(r.sourcingStatus) && !isStatus(r.sourcingStatus,"섭외거절","섭외보류")).length;
+    const excluded = Math.max(0, total - pending - confirmed);
+    const shipped = confirmedRows.filter(r=>isStatus(r.shipStatus,"수령확인","발송완료","배송완료")).length;
+    const confirmedPosted = confirmedRows.filter(r=>isStatus(r.postStatus,"게시완료","게시물 업로드 완료")).length;
+    const pct = (value, base) => base > 0 ? Math.max(value > 0 ? 3 : 0, Math.round(value/base*100)) : 0;
+    const row = (label,value,base,cls) => `<div class="funnel-row">
+      <div class="funnel-label">${label}</div>
+      <div class="funnel-track"><div class="funnel-fill ${cls}" style="width:${pct(value,base)}%"></div></div>
+      <div class="funnel-count">${fmtNum(value)}명<small>${base ? Math.round(value/base*100) : 0}%</small></div>
+    </div>`;
+    stats.className = "overview-funnel";
+    stats.innerHTML = `<div class="funnel-card">
+      <div class="funnel-head">
+        <div><div class="funnel-head-label">현재 선정된 전체 대상자</div><div class="funnel-head-value">${fmtNum(total)}명</div></div>
+        <div class="funnel-head-note">섭외 완료 ${fmtNum(confirmed)}명 · 팔로워 합계 ${fmtNum(confirmedFollowers)}명${excluded ? `<br>보류·거절 ${fmtNum(excluded)}명` : ""}</div>
+      </div>
+      <div class="funnel-group-title">전체 대상자 ${fmtNum(total)}명 기준</div>
+      ${row("대상자 선정",total,total,"selected")}
+      ${row("섭외 대기중",pending,total,"pending")}
+      ${row("섭외 완료",confirmed,total,"confirmed")}
+      <div class="funnel-group-title">섭외 완료 ${fmtNum(confirmed)}명 기준</div>
+      ${row("제품 발송완료",shipped,confirmed,"shipped")}
+      ${row("게시물 업로드 완료",confirmedPosted,confirmed,"posted")}
+    </div>`;
+  } else {
+    stats.className = "grid-3";
   const tiles = [
     {label:"섭외 중인 전체 인플루언서 수", value:total, unit:"명"},
-    {label:"섭외 확정된 인플루언서 수", value:confirmed, unit:"명"},
+    {label:"섭외 확정된 인플루언서 수", value:confirmed, unit:"명", extra:`팔로워수 합계 ${fmtNum(confirmedFollowers)}명`},
     {label:"게시 완료된 인플루언서 수", value:posted, unit:"명"},
   ];
-  document.getElementById("stats").innerHTML = tiles.map(t=>`
+  stats.innerHTML = tiles.map(t=>`
     <div class="card"><div class="card-label">${t.label}</div>
-    <div class="card-value">${typeof t.value==="number"?fmtNum(t.value):t.value}<span class="unit">${t.unit}</span></div></div>`).join("");
+    <div class="card-value">${typeof t.value==="number"?fmtNum(t.value):t.value}<span class="unit">${t.unit}</span>${t.extra?`<span class="inline-total">(${t.extra})</span>`:""}</div></div>`).join("");
+  }
 
   const breakdown = document.getElementById("productStatsBreakdown");
   if(STATE.active !== "전체"){ breakdown.innerHTML = ""; return; }
@@ -707,6 +758,7 @@ function renderTable(rows, emptyMessage){
 
 function renderAll(){
   renderTabs(STATE.active);
+  if(STATE.active !== "전체") STATE.sort = {key:"followers", dir:"desc"};
   const baseRows = currentRows().map(r=>({...r, _stage: deriveStage(r)}));
   const activeProduct = STATE.products[STATE.active];
   const emptyMessage = activeProduct && activeProduct.pending
